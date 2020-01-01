@@ -78,7 +78,8 @@ def flatten_add_features(sample):
     reduced_sample['total_event_count'] = sample['event_count'].sum()
     reduced_sample['avg_event_count'] = sample['event_count'].mean()
 
-    reduced_sample['total_game_time'] = sample['game_time'].sum()
+    # needs to be fixed, it's not a simple sum, it's a sum of the last event on each game_session
+    '''reduced_sample['total_game_time'] = sample['game_time'].sum()
 
     # find how much time was spent
     num_games = sample[sample['game_time'] != 0]['game_session'].nunique()
@@ -86,9 +87,28 @@ def flatten_add_features(sample):
     if num_games == 0:
         reduced_sample['avg_game_time'] = 0
     else:
-        reduced_sample['avg_game_time'] = reduced_sample['total_game_time'] / num_games
-        
+        reduced_sample['avg_game_time'] = reduced_sample['total_game_time'] / num_games'''
+
+    # process event codes
+    reduced_sample['avg_review_incorrect_feedback'] = get_avg_time_between_events(sample, 3120)
+    reduced_sample['avg_review_correct_feedback'] = get_avg_time_between_events(sample, 3121)
+    reduced_sample['total_rounds_beat'] = sample[sample['event_code'].isin([2030, 2035])].shape[0]
+    reduced_sample['total_movies_skipped'] = sample[sample['event_code'] == 2081].shape[0]
+    reduced_sample['total_movies_watched'] = sample[sample['event_code'] == 2083].shape[0]
+    reduced_sample['total_elsewhere_clicks'] = sample[sample['event_code'] == 4070].shape[0]
+    reduced_sample['total_help_button_clicks'] = sample[sample['event_code'] == 4090].shape[0]
+    reduced_sample['total_play_again'] = sample[sample['event_code'] == 4095].shape[0]
+
     return reduced_sample
+
+
+def get_avg_time_between_events(sample, end_code):
+    time_diffs = []
+    
+    for idx in sample[sample['event_code'] == end_code].index:
+        time_diffs.append(sample.loc[idx]['game_time'] - sample.loc[idx-1]['game_time'])
+            
+    return np.mean(time_diffs) if time_diffs else 0
 
 
 def process_data(df, test_set=False):
