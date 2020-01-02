@@ -9,20 +9,20 @@ from sklearn.preprocessing import OneHotEncoder
 
 def remove_dead_weight(df, train_labels, test_set=False):
     #df = df[df['world'] != 'NONE']
-    
+
     # filtering by ids that took assessments
     ids_w_assessments = df[df['type'] == 'Assessment']['installation_id'].drop_duplicates()
     df = df[df['installation_id'].isin(ids_w_assessments)]
     
-    # If training set then make sure the installation ids are in the labels and remove assements not in the labels
-    # if test_set == False:
-    #     # drop data whose installation does not contain any scored assessments in train_labels
-    #     df = df[df['installation_id'].isin(train_labels['installation_id'].unique())]
-    #
-    #     assessments = df[df.type == 'Assessment']
-    #     assessments = assessments[~assessments.game_session.isin(train_labels.game_session)]
-    #     df = df[~df.game_session.isin(assessments.game_session)]
-    #     df.reset_index(drop=True, inplace=True)
+    #If training set then make sure the installation ids are in the labels and remove assements not in the labels
+    if test_set == False:
+        # drop data whose installation does not contain any scored assessments in train_labels
+        df = df[df['installation_id'].isin(train_labels['installation_id'].unique())]
+
+        assessments = df[df.type == 'Assessment']
+        assessments = assessments[~assessments.game_session.isin(train_labels.game_session)]
+        df = df[~df.game_session.isin(assessments.game_session)]
+        df.reset_index(drop=True, inplace=True)
         
     return df
 
@@ -134,3 +134,9 @@ def process_data(df, test_set=False):
                 compiled_data.append(flatten_add_features(truncated_user_sample))
     
     return compiled_data
+
+def numerize(df):
+    for i, column in enumerate(df.columns):
+        col = df.columns[i]
+        df[col] = pd.to_numeric(df[col], errors='ignore')
+    return df
