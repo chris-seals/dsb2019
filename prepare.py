@@ -15,14 +15,14 @@ def remove_dead_weight(df, train_labels, test_set=False):
     df = df[df['installation_id'].isin(ids_w_assessments)]
     
     # If training set then make sure the installation ids are in the labels and remove assements not in the labels
-    if test_set == False:
-        # drop data whose installation does not contain any scored assessments in train_labels
-        df = df[df['installation_id'].isin(train_labels['installation_id'].unique())]
-        
-        assessments = df[df.type == 'Assessment']
-        assessments = assessments[~assessments.game_session.isin(train_labels.game_session)]
-        df = df[~df.game_session.isin(assessments.game_session)]
-        df.reset_index(drop=True, inplace=True)
+    # if test_set == False:
+    #     # drop data whose installation does not contain any scored assessments in train_labels
+    #     df = df[df['installation_id'].isin(train_labels['installation_id'].unique())]
+    #
+    #     assessments = df[df.type == 'Assessment']
+    #     assessments = assessments[~assessments.game_session.isin(train_labels.game_session)]
+    #     df = df[~df.game_session.isin(assessments.game_session)]
+    #     df.reset_index(drop=True, inplace=True)
         
     return df
 
@@ -63,7 +63,7 @@ def encode_col(train, test, col):
     new_train = pd.DataFrame(new_train_arr, columns=labels)
     new_test = pd.DataFrame(new_test_arr, columns=labels)
     
-    return pd.concat([train, new_train], axis=1), pd.concat([train, new_test], axis=1)
+    return pd.concat([train, new_train], axis=1), pd.concat([test, new_test], axis=1)
 
 
 def flatten_add_features(sample):
