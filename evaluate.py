@@ -3,8 +3,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import RobustScaler
+import matplotlib.pyplot as plt
+from mlxtend.plotting import plot_learning_curves
 
-def quick_eval(train, estimator, scale=False, cv=False):
+
+def quick_eval(train, estimator, scale=False, cv=False): ##TODO modify to return trained model
 	X = train.drop('accuracy_group', axis=1)._get_numeric_data()
 	y = train.accuracy_group
 
@@ -26,3 +29,4 @@ def quick_eval(train, estimator, scale=False, cv=False):
 		print(f'The accuracy of {str(estimator).split("(")[0]} is {accuracy}')
 
 		return str(estimator).split("(")[0], accuracy
+

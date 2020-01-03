@@ -158,7 +158,8 @@ def numerize(df):
 
 
 def load_and_prep(train_labels_df):
-    """ read in pickled compiled data and format to make model-friendly"""
+    """ read in pickled compiled data and format to make model-friendly
+    returns compiled_train, compiled_test"""
     #train_labels =
     compiled_train_data = joblib.load('compiled_train_data.pkl')
     compiled_test_data = joblib.load('compiled_test_data.pkl')
