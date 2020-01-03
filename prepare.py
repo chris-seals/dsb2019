@@ -1,4 +1,5 @@
-import pandas as pd 
+import joblib
+import pandas as pd
 import numpy as np
 import re
 
@@ -6,6 +7,18 @@ from typing import Any
 #from collections import Counter
 from tqdm.notebook import tqdm
 from sklearn.preprocessing import OneHotEncoder
+
+
+def read_raw_csvs():
+    """ Read in all initial datasets in order:
+    raw_train, raw_train_labels, raw_test, specs, sample"""
+    raw_train = pd.read_csv('data/train.csv')
+    raw_train_labels = pd.read_csv('data/train_labels.csv')
+    raw_test = pd.read_csv('data/test.csv')
+    specs = pd.read_csv('data/specs.csv')
+    sample = pd.read_csv('data/sample_submission.csv')
+
+    return raw_train, raw_train_labels, raw_test, specs, sample
 
 def remove_dead_weight(df, train_labels, test_set=False):
     #df = df[df['world'] != 'NONE']
@@ -135,8 +148,31 @@ def process_data(df, test_set=False):
     
     return compiled_data
 
+
 def numerize(df):
+    """turn all possible columns into numeric format"""
     for i, column in enumerate(df.columns):
         col = df.columns[i]
         df[col] = pd.to_numeric(df[col], errors='ignore')
     return df
+
+
+def load_and_prep(train_labels_df):
+    """ read in pickled compiled data and format to make model-friendly"""
+    #train_labels =
+    compiled_train_data = joblib.load('compiled_train_data.pkl')
+    compiled_test_data = joblib.load('compiled_test_data.pkl')
+
+    compiled_train = pd.concat(compiled_train_data, axis=1).T
+    compiled_train.drop('installation_id_slice', axis=1, inplace=True)
+
+    compiled_test = pd.concat(compiled_test_data, axis=1).T
+
+    # Join labels to compiled_train
+    compiled_train = pd.merge(compiled_train, train_labels_df[['installation_id', 'game_session', 'accuracy_group']], \
+                              on=['installation_id', 'game_session'])
+
+    compiled_train = numerize(compiled_train)
+    compiled_test = numerize(compiled_test)
+
+    return compiled_train, compiled_test
