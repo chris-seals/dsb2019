@@ -177,3 +177,29 @@ def load_and_prep(train_labels_df):
     compiled_test = numerize(compiled_test)
 
     return compiled_train, compiled_test
+
+
+def balance_classes(train_df):
+    """ Balance classes such that all accuracy groups are equally represented"""
+
+    from sklearn.utils import resample
+
+    # Separate classes
+    df_0 = train_df[train_df.accuracy_group == 0]
+    df_1 = train_df[train_df.accuracy_group == 1]
+    df_2 = train_df[train_df.accuracy_group == 2]
+    df_3 = train_df[train_df.accuracy_group == 3]
+
+    # Downsample 3, 0, 1 to 2's level - n=419
+    resampled_dfs = [df_2]
+
+    for i in [df_0, df_1, df_3]:
+        downsampled_df = resample(i,
+                                  replace=False,  # sample without replacement
+                                  n_samples=min(train_df.accuracy_group.value_counts()),  # to match minority
+                                  random_state=42)  # reproducibility
+        resampled_dfs.append(downsampled_df)
+
+    balanced_train_df = pd.concat(resampled_dfs, axis=0)
+
+    return balanced_train_df
