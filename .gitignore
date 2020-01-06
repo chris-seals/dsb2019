@@ -3,4 +3,3 @@ __pycache__/
 data/
 *.pkl
 *.csv
-lyons-v4.py
