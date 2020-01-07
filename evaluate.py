@@ -5,60 +5,63 @@ from sklearn.metrics import accuracy_score, classification_report, cohen_kappa_s
 from sklearn.preprocessing import RobustScaler
 import matplotlib.pyplot as plt
 from mlxtend.plotting import plot_learning_curves
+import mlflow, mlflow.sklearn
+
 kappa_scorer = make_scorer(cohen_kappa_score(),
                            weights='quadratic')
 
-def qwk3(a1, a2, max_rat=3):
-    assert(len(a1) == len(a2))
-    a1 = np.asarray(a1, dtype=int)
-    a2 = np.asarray(a2, dtype=int)
 
-    hist1 = np.zeros((max_rat + 1, ))
-    hist2 = np.zeros((max_rat + 1, ))
+def quick_eval(train, estimator, scale=False, cv=False):
 
-    o = 0
-    for k in range(a1.shape[0]):
-        i, j = a1[k], a2[k]
-        hist1[i] += 1
-        hist2[j] += 1
-        o +=  (i - j) * (i - j)
+    kappa_scorer = make_scorer(cohen_kappa_score, weights='quadratic')
 
-    e = 0
-    for i in range(max_rat + 1):
-        for j in range(max_rat + 1):
-            e += hist1[i] * hist2[j] * (i - j) * (i - j)
+    estimator_name = str(estimator).split("(")[0]
 
-    e = e / a1.shape[0]
+    with mlflow.start_run(nested=True):
+        X = train.drop('accuracy_group', axis=1)._get_numeric_data()
+        y = train.accuracy_group
 
-    return 1 - o / e
+        if scale:
+            rs = RobustScaler()
+            X = rs.fit_transform(X)
 
+        X_train, X_test, y_train, y_test = train_test_split(X,
+                                                            y,
+                                                            test_size=.2,
+                                                            random_state=42)
 
-def quick_eval(train, estimator, scale=False, cv=False): ##TODO modify to return trained model
-	X = train.drop('accuracy_group', axis=1)._get_numeric_data()
-	y = train.accuracy_group
+        estimator.fit(X_train, y_train)
+        y_pred = estimator.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        qwk = cohen_kappa_score(y_test, y_pred, weights='quadratic')
+        report = classification_report(y_test, y_pred, output_dict=True)
 
-	if scale:
-		rs = RobustScaler()
-		X = rs.fit_transform(X)
+        mlflow.log_param("features_shape", X.shape)
+        mlflow.log_param("estimator", str(estimator).split('(')[0])
+        mlflow.log_metric('Accuracy', accuracy)
+        mlflow.log_metric('QWK', qwk)
+        mlflow.sklearn.log_model(estimator, "model")
 
-	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.2, random_state=42)
+        classes = [str(x) for x in [0, 1, 2, 3]]
 
-	estimator.fit(X_train, y_train)
-	y_pred = estimator.predict(X_test)
-	accuracy = accuracy_score(y_test, y_pred)
-	qwk = qwk3(y_test, y_pred)
-	report = classification_report(y_test, y_pred)
+        # create a metric for each piece of the confusion matrix
+        for i in classes:
+            [mlflow.log_metric(f'{i}-{k}', v) for k, v in report[i].items()]
 
-	if cv:
-		cv_score = cross_val_score(estimator, X, y, scoring='kappa_scorer', cv=5).mean()
-		print(f'The CV score of {str(estimator).split("(")[0]} is {cv_score}')
-		#return str(estimator).split("(")[0], cv_score
-		return estimator
+        if cv:
+            cv_score = cross_val_score(estimator,
+                                       X,
+                                       y,
+                                       scoring=kappa_scorer,
+                                       cv=5).mean()
+            print(f'The CV qwk score of {estimator_name} is {cv_score}')
+            mlflow.log_metric('CV qwk', cv_score)
 
-	else:
-		print(f'The accuracy of {str(estimator).split("(")[0]} is {accuracy}')
-		print(f'The QWK of {str(estimator).split("(")[0]} is {qwk}')
-		print(report)
-		#return str(estimator).split("(")[0], accuracy
-		return estimator
+            return estimator
 
+        else:
+            print(f'The accuracy of {estimator_name} is {accuracy}')
+            print(f'The QWK of {estimator_name} is {qwk}')
+            print(report)
+
+            return estimator
