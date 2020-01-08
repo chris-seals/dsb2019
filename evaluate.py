@@ -39,7 +39,7 @@ def quick_eval(train, estimator, scale=False, cv=False):
         runtime = datetime.now() - start
         accuracy = accuracy_score(y_test, y_pred)
         qwk = cohen_kappa_score(y_test, y_pred, weights="quadratic")
-        report = classification_report(y_test, y_pred, output_dict=True)
+        #report = classification_report(y_test, y_pred, output_dict=True)
         mlflow.log_metric("Runtime min", runtime.seconds/60)
         mlflow.log_param("features_shape", X.shape)
         mlflow.log_param("estimator", estimator_name)
