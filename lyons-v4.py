@@ -447,8 +447,8 @@ reduce_train, reduce_test, categoricals = get_train_and_test(train, test)
 del train
 del test
 
-reduce_train.to_csv('reduce_train.csv')
-reduce_test.to_csv('reduce_test.csv')
+reduce_train.to_csv('reduce_train.csv', index=False)
+reduce_test.to_csv('reduce_test.csv', index=False)
 
 # %% [code]
 # Add the accuracy group vals

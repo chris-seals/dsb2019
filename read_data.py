@@ -30,6 +30,7 @@ from sklearn.metrics import cohen_kappa_score, mean_squared_error
 from sklearn.model_selection import KFold, StratifiedKFold
 import gc
 import json
+import joblib
 
 pd.set_option("display.max_columns", 1000)
 
@@ -390,3 +391,4 @@ del test
 
 reduce_train.to_csv("reduce_train_cc_6k.csv")
 reduce_test.to_csv("reduce_test_cc_6k.csv")
+joblib.dump(categoricals, 'categoricals.txt')

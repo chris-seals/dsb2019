@@ -14,4 +14,5 @@ dependencies:
   - mlxtend
   - mlflow
   - yapf
+  - tqdm
 prefix: C:\Users\604572\Continuum\anaconda3\envs\dsb2019

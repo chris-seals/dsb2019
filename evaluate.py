@@ -11,9 +11,11 @@ from sklearn.preprocessing import RobustScaler
 import matplotlib.pyplot as plt
 from mlxtend.plotting import plot_learning_curves
 import mlflow, mlflow.sklearn
+from collections import Counter
+import joblib
 
 
-def quick_eval(train, estimator, scale=False, cv=False):
+def quick_eval(train, estimator, scale=False, cv=False, pc=False):
 
     kappa_scorer = make_scorer(cohen_kappa_score, weights="quadratic")
 
@@ -23,7 +25,10 @@ def quick_eval(train, estimator, scale=False, cv=False):
         from datetime import datetime
 
         start = datetime.now()
-        X = train.drop("accuracy_group", axis=1)._get_numeric_data()
+        #X = train.drop("accuracy_group", axis=1)._get_numeric_data()
+        cols_to_drop = ['game_session', 'installation_id', 'accuracy_group']
+        features = joblib.load('features.pkl')
+        X = train.drop(cols_to_drop, axis=1)[features]
         y = train.accuracy_group
 
         if scale:
@@ -36,6 +41,8 @@ def quick_eval(train, estimator, scale=False, cv=False):
 
         estimator.fit(X_train, y_train)
         y_pred = estimator.predict(X_test)
+        if pc:
+            y_pred = get_class_pred(y_pred, train)
         runtime = datetime.now() - start
         accuracy = accuracy_score(y_test, y_pred)
         qwk = cohen_kappa_score(y_test, y_pred, weights="quadratic")
@@ -68,3 +75,62 @@ def quick_eval(train, estimator, scale=False, cv=False):
             #print(report)
 
             return estimator
+
+
+# get prediction
+def get_class_pred(pred, train_t):
+    """
+    Fast cappa eval function for lgb.
+    """
+    dist = Counter(train_t['accuracy_group'])
+    for k in dist:
+        dist[k] /= len(train_t)
+
+    acum = 0
+    bound = {}
+    for i in range(3):
+        acum += dist[i]
+        bound[i] = np.percentile(pred, acum * 100)
+
+    def classify(x):
+        if x <= bound[0]:
+            return 0
+        elif x <= bound[1]:
+            return 1
+        elif x <= bound[2]:
+            return 2
+        else:
+            return 3
+
+    y_pred = np.array(list(map(classify, pred)))
+
+    return y_pred
+
+
+def get_class_pred_cjs(pred, train_t):
+    """
+    Fast cappa eval function for lgb.
+    """
+    dist = Counter(train_t['accuracy_group'])
+    for k in dist:
+        dist[k] /= len(train_t)
+
+    acum = 0
+    bound = {}
+    for i in range(3):
+        acum += dist[i]
+        bound[i] = np.percentile(pred, acum * 100)
+
+    def classify(x):
+        if x <= (bound[0]*1.1):
+            return 0
+        elif x <= bound[1]:
+            return 1
+        elif x <= bound[2]*.9:
+            return 2
+        else:
+            return 3
+
+    y_pred = np.array(list(map(classify, pred)))
+
+    return y_pred
