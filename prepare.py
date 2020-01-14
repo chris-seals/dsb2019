@@ -179,8 +179,11 @@ def load_and_prep(train_labels_df):
     return compiled_train, compiled_test
 
 
-def balance_classes(train_df):
+def balance_classes(X_train, y_train):
     """ Balance classes such that all accuracy groups are equally represented"""
+
+    X_train['accuracy_group'] = y_train
+    train_df = X_train
 
     from sklearn.utils import resample
 
@@ -190,16 +193,20 @@ def balance_classes(train_df):
     df_2 = train_df[train_df.accuracy_group == 2]
     df_3 = train_df[train_df.accuracy_group == 3]
 
-    # Downsample 3, 0, 1 to 2's level - n=419
-    resampled_dfs = [df_2]
+    # Highest count to upsample towards
+    biggest_class = max([x.shape[0] for x in [df_0, df_1, df_2, df_3]])
+    resampled_dfs = []
+    for i in [df_0, df_1, df_2, df_3]:
+        if i.shape[0] != biggest_class:
+            upsampled_df = resample(i,
+                                    replace=True,  # sample without replacement
+                                    n_samples=biggest_class,  # to match majority
+                                    random_state=42)  # reproducibility
 
-    for i in [df_0, df_1, df_3]:
-        downsampled_df = resample(i,
-                                  replace=False,  # sample without replacement
-                                  n_samples=min(train_df.accuracy_group.value_counts()),  # to match minority
-                                  random_state=42)  # reproducibility
-        resampled_dfs.append(downsampled_df)
+            resampled_dfs.append(upsampled_df)
+        else:
+            resampled_dfs.append(i)
 
     balanced_train_df = pd.concat(resampled_dfs, axis=0)
 
-    return balanced_train_df
+    return balanced_train_df.drop('accuracy_group', axis=1), balanced_train_df.accuracy_group

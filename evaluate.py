@@ -3,7 +3,9 @@ import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.metrics import accuracy_score, cohen_kappa_score, make_scorer
 from sklearn.preprocessing import RobustScaler
-
+import sys, os
+sys.path.append(os.getcwd())
+from prepare import balance_classes
 import mlflow, mlflow.sklearn
 from collections import Counter
 import joblib
@@ -33,7 +35,7 @@ def quick_eval(train, estimator, scale=False, cv=False, pc=False):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
-
+        X_train, y_train = balance_classes(X_train, y_train)
         estimator.fit(X_train, y_train)
         y_pred = estimator.predict(X_test)
         if pc:
@@ -70,86 +72,86 @@ def quick_eval(train, estimator, scale=False, cv=False, pc=False):
 
 
 # get prediction
-# def get_class_pred(pred, train_t):
-#     """
-#     Fast cappa eval function for regression outputs
-#     """
-#     dist = Counter(train_t["accuracy_group"])
-#     for k in dist:
-#         dist[k] /= len(train_t)
-#
-#     acum = 0
-#     bound = {}
-#     for i in range(3):
-#         acum += dist[i]
-#         bound[i] = np.percentile(pred, acum * 100)
-#
-#     def classify(x):
-#         if x <= bound[0]:
-#             return 0
-#         elif x <= bound[1]:
-#             return 1
-#         elif x <= bound[2]:
-#             return 2
-#         else:
-#             return 3
-#
-#     y_pred = np.array(list(map(classify, pred)))
-#
-#     return y_pred
+def get_class_pred(pred, train_t):
+    """
+    Fast cappa eval function for regression outputs
+    """
+    dist = Counter(train_t["accuracy_group"])
+    for k in dist:
+        dist[k] /= len(train_t)
 
+    acum = 0
+    bound = {}
+    for i in range(3):
+        acum += dist[i]
+        bound[i] = np.percentile(pred, acum * 100)
 
-def get_class_pred(preds, X_test):
-    test = X_test
-    test['accuracy_group'] = preds
-    #print(test)
-    #print(test.accuracy_group)
-
-    """Example
-    {8: {0: 0.9081617833774993, 1: 1.3557792939869913, 2: 1.6557723302312697},
-     15: {0: 0.750632477134402, 1: 1.3367320716399504, 2: 1.71574333163995},
-     16: {0: 1.0165306932685654, 1: 1.4530646993771625, 2: 1.7328451756800636},
-     20: {0: 2.078115677309628, 1: 2.301674688587722, 2: 2.4390138805736328},
-     40: {0: 1.6276847459431902, 1: 2.0950951087691188, 2: 2.306488824806992}}
-     """
-    raw_sd = {8: {0: 576, 1: 353, 2: 470, 3: 2752},
-              15: {0: 421, 1: 459, 2: 630, 3: 2545},
-              16: {0: 594, 1: 355, 2: 460, 3: 2348},
-              20: {0: 1752, 1: 466, 2: 256, 3: 507},
-              40: {0: 886, 1: 778, 2: 389, 3: 693}}
-
-    # establish separate bounds for each assessment type (8,15,16,20,40) and assemble master distribution dictionary
-    master = {}
-    for session in raw_sd:
-        session_array = X_test[X_test.session_title == session]['accuracy_group']
-        dist = raw_sd[session]
-
-        sum_values = sum(dist.values())
-        for k in dist:
-            dist[k] /= sum_values
-        acum = 0
-        bound = {}
-        for i in range(3):
-            acum += dist[i]
-            bound[i] = np.percentile(session_array, acum * 100)
-        master[session] = bound
-
-    def classify(row):
-        sid = row['session_title']
-        x = row['accuracy_group']
-        #print(sid,x)
-        if x <= master[sid][0]:
+    def classify(x):
+        if x <= bound[0]:
             return 0
-        elif x <= master[sid][1]:
+        elif x <= bound[1]:
             return 1
-        elif x <= master[sid][2]:
+        elif x <= bound[2]:
             return 2
         else:
             return 3
 
-    X_test['accuracy_group'] = X_test.apply(classify, axis=1)
+    y_pred = np.array(list(map(classify, pred)))
 
-    return test['accuracy_group']
+    return y_pred
+
+
+# def get_class_pred(preds, X_test):
+#     test = X_test
+#     test['accuracy_group'] = preds
+#     #print(test)
+#     #print(test.accuracy_group)
+#
+#     """Example
+#     {8: {0: 0.9081617833774993, 1: 1.3557792939869913, 2: 1.6557723302312697},
+#      15: {0: 0.750632477134402, 1: 1.3367320716399504, 2: 1.71574333163995},
+#      16: {0: 1.0165306932685654, 1: 1.4530646993771625, 2: 1.7328451756800636},
+#      20: {0: 2.078115677309628, 1: 2.301674688587722, 2: 2.4390138805736328},
+#      40: {0: 1.6276847459431902, 1: 2.0950951087691188, 2: 2.306488824806992}}
+#      """
+#     raw_sd = {8: {0: 576, 1: 353, 2: 470, 3: 2752},
+#               15: {0: 421, 1: 459, 2: 630, 3: 2545},
+#               16: {0: 594, 1: 355, 2: 460, 3: 2348},
+#               20: {0: 1752, 1: 466, 2: 256, 3: 507},
+#               40: {0: 886, 1: 778, 2: 389, 3: 693}}
+#
+#     # establish separate bounds for each assessment type (8,15,16,20,40) and assemble master distribution dictionary
+#     master = {}
+#     for session in raw_sd:
+#         session_array = X_test[X_test.session_title == session]['accuracy_group']
+#         dist = raw_sd[session]
+#
+#         sum_values = sum(dist.values())
+#         for k in dist:
+#             dist[k] /= sum_values
+#         acum = 0
+#         bound = {}
+#         for i in range(3):
+#             acum += dist[i]
+#             bound[i] = np.percentile(session_array, acum * 100)
+#         master[session] = bound
+#
+#     def classify(row):
+#         sid = row['session_title']
+#         x = row['accuracy_group']
+#         #print(sid,x)
+#         if x <= master[sid][0]:
+#             return 0
+#         elif x <= master[sid][1]:
+#             return 1
+#         elif x <= master[sid][2]:
+#             return 2
+#         else:
+#             return 3
+#
+#     X_test['accuracy_group'] = X_test.apply(classify, axis=1)
+#
+#     return test['accuracy_group']
 
 
 def cv_reg(estimator, train_df, n_splits=7):
@@ -162,10 +164,12 @@ def cv_reg(estimator, train_df, n_splits=7):
         for i, (train_idx, test_idx) in enumerate(kf.split(train_df.index)):
             train, test = train_df.iloc[train_idx], train_df.iloc[test_idx]
             X_train, y_train = train.drop(cols_to_drop, axis=1), train.accuracy_group
+            # try balancing
+            X_train, y_train = balance_classes(X_train, y_train)
             X_test, y_test = test.drop(cols_to_drop, axis=1), test.accuracy_group
             estimator.fit(X_train, y_train)
             prediction = estimator.predict(X_test)
-            y_pred = get_class_pred(prediction, X_test)
+            y_pred = get_class_pred(prediction, train_df)
             qwk = cohen_kappa_score(y_pred, y_test, weights="quadratic")
             print(f"{i + 1}/{kf.n_splits} Fold start| QWK={qwk}")
             results.append(qwk)
