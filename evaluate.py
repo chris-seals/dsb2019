@@ -16,8 +16,8 @@ cols_to_drop = ["game_session", "installation_id", "accuracy_group"]
 features = joblib.load("features.pkl")
 
 
-def quick_eval(train, estimator, scale=False, cv=False, pc=False):
-
+def quick_eval(train, estimator, scale=False, bc=False, cv=False, pc=False):
+    """ bc = balance classes, cv = cross-validate, pc= use pred class function on regression results"""
     kappa_scorer = make_scorer(cohen_kappa_score, weights="quadratic")
 
     with mlflow.start_run(nested=True):
@@ -35,7 +35,9 @@ def quick_eval(train, estimator, scale=False, cv=False, pc=False):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
-        X_train, y_train = balance_classes(X_train, y_train)
+        if bc: #balance classes
+
+            X_train, y_train = balance_classes(X_train, y_train)
         estimator.fit(X_train, y_train)
         y_pred = estimator.predict(X_test)
         if pc:
@@ -154,19 +156,41 @@ def get_class_pred(pred, train_t):
 #     return test['accuracy_group']
 
 
-def cv_reg(estimator, train_df, n_splits=7):
+def cv_reg(estimator, train_df, n_splits=7, bc = False, custom_features=None, km=False):
+    from sklearn.preprocessing import MinMaxScaler
+    from sklearn.cluster import KMeans
     """ Function to run cappa cross val on a given estimator"""
     estimator_name = str(estimator).split("(")[0]
     with mlflow.start_run():
         results = []
         kf = KFold(shuffle=True, n_splits=n_splits)
         i = 1
+        train_df = train_df.copy()
         for i, (train_idx, test_idx) in enumerate(kf.split(train_df.index)):
             train, test = train_df.iloc[train_idx], train_df.iloc[test_idx]
-            X_train, y_train = train.drop(cols_to_drop, axis=1), train.accuracy_group
             # try balancing
-            X_train, y_train = balance_classes(X_train, y_train)
-            X_test, y_test = test.drop(cols_to_drop, axis=1), test.accuracy_group
+            if custom_features.any():
+                X_train, y_train = train[custom_features], train.accuracy_group
+                X_test, y_test = test[custom_features], test.accuracy_group
+
+            else:
+                X_train, y_train = train.drop(cols_to_drop, axis=1), train.accuracy_group
+                X_test, y_test = test.drop(cols_to_drop, axis=1), test.accuracy_group
+
+            if bc:
+                X_train, y_train = balance_classes(X_train, y_train)
+
+            if km:
+                mms = MinMaxScaler()
+                X_train_scaled = mms.fit_transform(X_train)
+
+                kmeans = KMeans(n_clusters=10,
+                                random_state=42).fit(X_train_scaled)
+                X_train['cluster'] = kmeans.predict(X_train_scaled)
+
+                X_test_scaled = mms.transform(X_test)
+
+                X_test['cluster'] = kmeans.predict(X_test_scaled)
             estimator.fit(X_train, y_train)
             prediction = estimator.predict(X_test)
             y_pred = get_class_pred(prediction, train_df)
