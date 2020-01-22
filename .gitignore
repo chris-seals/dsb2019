@@ -5,3 +5,4 @@ data/
 *.csv
 mlruns/
 catboost_info/
+*.hdf5
