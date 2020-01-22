@@ -4,5 +4,5 @@ data/
 *.pkl
 *.csv
 mlruns/
-/catboost_info/
+catboost_info
 *.hdf5
